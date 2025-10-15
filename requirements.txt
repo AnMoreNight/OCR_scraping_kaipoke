@@ -1,0 +1,7 @@
+google-cloud-vision
+google-auth
+python-dotenv
+openai
+playwright
+imapclient
+pyzmail36
