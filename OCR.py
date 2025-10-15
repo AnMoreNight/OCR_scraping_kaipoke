@@ -19,31 +19,31 @@ class ImageTextExtractor:
     
     def __init__(self):
         """Initialize the extractor with Google Cloud credentials"""
-        # Set Google Application Credentials from .env file
-        credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-        if credentials_path:
-            # Convert relative path to absolute path
-            if not os.path.isabs(credentials_path):
-                credentials_path = os.path.abspath(credentials_path)
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
-            print(f"Using credentials from: {credentials_path}")
-        
-        # Initialize client with explicit credentials
+        # Initialize client with credentials from environment variables
         try:
             from google.oauth2 import service_account
-            if credentials_path and os.path.exists(credentials_path):
-                credentials = service_account.Credentials.from_service_account_file(credentials_path)
+            import json
+            
+            # Use service account JSON from environment variable (preferred method)
+            service_account_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+            if service_account_json:
+                # Parse JSON from environment variable
+                service_account_info = json.loads(service_account_json)
+                credentials = service_account.Credentials.from_service_account_info(service_account_info)
                 self.vision_client = vision.ImageAnnotatorClient(credentials=credentials)
+                print("✅ Using Google Cloud credentials from GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
             else:
-                self.vision_client = vision.ImageAnnotatorClient()
+                print("❌ No Google Cloud credentials found!")
+                print("Please set GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
+                raise ValueError("No Google Cloud credentials configured")
         except Exception as e:
-            print(f"Error initializing Vision client: {e}")
-            self.vision_client = vision.ImageAnnotatorClient()
+            print(f"❌ Error initializing Vision client: {e}")
+            raise
         
         # Initialize OpenAI client
         self.api_key = os.getenv('OPENAI_API_KEY')
         if not self.api_key:
-            print("Warning: OPENAI_API_KEY not set in .env file")
+            print("Warning: OPENAI_API_KEY not set in environment variables")
     
     def extract_text_from_image(self, image_path: str, merge_all: bool = True) -> Union[str, List[str]]:
         """Extract text from an image using Google Cloud Vision API"""
