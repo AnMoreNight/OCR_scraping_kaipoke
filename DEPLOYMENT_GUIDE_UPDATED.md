@@ -46,7 +46,7 @@ Ensure these files are in your repository:
 2. Sign up with GitHub
 3. Connect your GitHub account
 
-### 2.2 Create New Web Service
+### 2.2 Create New Background Worker
 
 **Option A: Using render.yaml (Recommended)**
 1. Go to [Render Dashboard](https://dashboard.render.com)
@@ -56,7 +56,7 @@ Ensure these files are in your repository:
 
 **Option B: Manual Setup**
 1. Go to [Render Dashboard](https://dashboard.render.com)
-2. Click "New +" → "Web Service"
+2. Click "New +" → "Background Worker"
 3. Connect your GitHub repository
 4. Configure manually:
    - **Name:** `kaipoke-ocr-workflow`

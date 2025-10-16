@@ -46,7 +46,7 @@ git push origin main
 ### 3. Deploy Service
 - Use "Blueprint" option (recommended)
 - Render will auto-detect `render.yaml`
-- Or create "Web Service" manually
+- Or create "Background Worker" manually
 
 ### 4. Set Environment Variables
 Copy all variables from your `.env` file to Render dashboard
