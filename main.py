@@ -4,6 +4,7 @@ Main workflow for Kaipoke OCR and Scraping
 
 import os
 import time
+import threading
 from dotenv import load_dotenv
 from typing import List, Dict
 from kaipoke import KaipokeScraper
@@ -173,16 +174,9 @@ def email_triggered_workflow(email_data: Dict):
         print("💡 Please send an email with an image attachment to process")
 
 
-def main():
-    """Main entry point - Email Trigger Mode Only"""
-    print("=" * 70)
-    print("=== Kaipoke OCR Workflow with Email Trigger ===")
-    print("=" * 70)
-    print("📧 Email Trigger Mode - Processing images from email attachments")
-    print("=" * 70)
-    
-    # Email trigger mode
-    print("\n📧 Starting Email Trigger Mode...")
+def start_email_listener():
+    """Start email listener in background thread"""
+    print("\n📧 Starting Email Listener in background...")
     
     # Create email listener
     listener = EmailListener()
@@ -198,6 +192,66 @@ def main():
         print("2. For Gmail, use App Password (not regular password)")
         print("3. Enable 2-factor authentication on Gmail")
         print("4. Generate App Password at: https://myaccount.google.com/apppasswords")
+
+
+def main():
+    """Main entry point - Web Service with Email Listener"""
+    print("=" * 70)
+    print("=== Kaipoke OCR Workflow with Email Trigger ===")
+    print("=" * 70)
+    print("🌐 Web Service Mode - Processing images from email attachments")
+    print("=" * 70)
+    
+    # Start email listener in background thread
+    email_thread = threading.Thread(target=start_email_listener, daemon=True)
+    email_thread.start()
+    
+    # Simple HTTP server to keep service alive
+    try:
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        import json
+        
+        class HealthHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/health':
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {
+                        "status": "healthy",
+                        "service": "Kaipoke OCR Email Listener",
+                        "message": "Email listener is running in background"
+                    }
+                    self.wfile.write(json.dumps(response).encode())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+            
+            def log_message(self, format, *args):
+                # Suppress default logging
+                pass
+        
+        # Start HTTP server on port 10000 (Render's assigned port)
+        port = int(os.environ.get('PORT', 10000))
+        server = HTTPServer(('0.0.0.0', port), HealthHandler)
+        print(f"🌐 HTTP server started on port {port}")
+        print(f"📧 Email listener running in background")
+        print(f"💡 Service will stay alive and process emails")
+        
+        # Keep server running
+        server.serve_forever()
+        
+    except Exception as e:
+        print(f"❌ Error starting HTTP server: {e}")
+        print("🔄 Falling back to simple keep-alive loop...")
+        
+        # Fallback: simple keep-alive loop
+        try:
+            while True:
+                time.sleep(60)  # Sleep for 1 minute
+                print("💓 Service alive - checking emails...")
+        except KeyboardInterrupt:
+            print("\n⚠️ Service stopped")
 
 if __name__ == "__main__":
     main()
