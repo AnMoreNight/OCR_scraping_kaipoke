@@ -5,10 +5,27 @@ Email Listener Module - Monitors email inbox for new messages
 import os
 import time
 import email
+import sys
+import logging
 from typing import List, Dict, Optional, Callable
 from dotenv import load_dotenv
 from imapclient import IMAPClient
 import pyzmail
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def log_print(message):
+    """Print and log message for better visibility on Render"""
+    print(message, flush=True)
+    logger.info(message)
 
 # Load environment variables
 load_dotenv()
@@ -35,12 +52,12 @@ class EmailListener:
     def connect(self) -> bool:
         """Connect to email server"""
         if not all([self.email_address, self.email_password]):
-            print("❌ Error: EMAIL_ADDRESS and EMAIL_PASSWORD must be set in .env file")
+            log_print("❌ Error: EMAIL_ADDRESS and EMAIL_PASSWORD must be set in .env file")
             return False
         
         try:
-            print(f"📧 Connecting to email server: {self.email_server}")
-            print(f"📧 Email account: {self.email_address}")
+            log_print(f"📧 Connecting to email server: {self.email_server}")
+            log_print(f"📧 Email account: {self.email_address}")
             
             # Connect to IMAP server
             self.client = IMAPClient(self.email_server, ssl=True)
@@ -51,18 +68,18 @@ class EmailListener:
             # Select folder
             self.client.select_folder(self.email_folder)
             
-            print("✅ Successfully connected to email server")
+            log_print("✅ Successfully connected to email server")
             self.is_connected = True
             
             # Get existing email UIDs to avoid processing old emails
             messages = self.client.search(['ALL'])
             self.seen_uids = set(messages)
-            print(f"📧 Found {len(self.seen_uids)} existing emails (will be ignored)")
+            log_print(f"📧 Found {len(self.seen_uids)} existing emails (will be ignored)")
             
             return True
             
         except Exception as e:
-            print(f"❌ Error connecting to email server: {e}")
+            log_print(f"❌ Error connecting to email server: {e}")
             return False
     
     def disconnect(self):
@@ -70,7 +87,7 @@ class EmailListener:
         if self.client:
             try:
                 self.client.logout()
-                print("📧 Disconnected from email server")
+                log_print("📧 Disconnected from email server")
             except:
                 pass
         self.is_connected = False
@@ -90,7 +107,7 @@ class EmailListener:
             if not new_uids:
                 return []
             
-            print(f"\n📬 Found {len(new_uids)} new email(s)!")
+            log_print(f"\n📬 Found {len(new_uids)} new email(s)!")
             
             # Fetch new emails
             new_emails = []
@@ -101,12 +118,12 @@ class EmailListener:
                         new_emails.append(email_data)
                     self.seen_uids.add(uid)
                 except Exception as e:
-                    print(f"⚠️ Error processing email UID {uid}: {e}")
+                    log_print(f"⚠️ Error processing email UID {uid}: {e}")
             
             return new_emails
             
         except Exception as e:
-            print(f"❌ Error checking emails: {e}")
+            log_print(f"❌ Error checking emails: {e}")
             return []
     
     def get_email_details(self, uid: int) -> Optional[Dict]:
@@ -149,7 +166,7 @@ class EmailListener:
             return email_data
             
         except Exception as e:
-            print(f"Error getting email details: {e}")
+            log_print(f"Error getting email details: {e}")
             return None
     
     def listen(self, callback: Callable, check_interval: int = 10):
@@ -160,11 +177,11 @@ class EmailListener:
             callback: Function to call when new email arrives (receives email_data dict)
             check_interval: Seconds between email checks (default: 10)
         """
-        print(f"\n🎧 Starting email listener...")
-        print(f"📧 Monitoring: {self.email_address}")
-        print(f"📁 Folder: {self.email_folder}")
-        print(f"⏱️ Check interval: {check_interval} seconds")
-        print(f"\n⚡ Waiting for new emails... (Press Ctrl+C to stop)\n")
+        log_print(f"\n🎧 Starting email listener...")
+        log_print(f"📧 Monitoring: {self.email_address}")
+        log_print(f"📁 Folder: {self.email_folder}")
+        log_print(f"⏱️ Check interval: {check_interval} seconds")
+        log_print(f"\n⚡ Waiting for new emails... (Press Ctrl+C to stop)\n")
         
         try:
             while True:
@@ -173,29 +190,29 @@ class EmailListener:
                 
                 # Process each new email
                 for email_data in new_emails:
-                    print(f"\n{'='*60}")
-                    print(f"📧 New Email Received!")
-                    print(f"From: {email_data['from']}")
-                    print(f"Subject: {email_data['subject']}")
-                    print(f"Date: {email_data['date']}")
-                    print(f"{'='*60}\n")
+                    log_print(f"\n{'='*60}")
+                    log_print(f"📧 New Email Received!")
+                    log_print(f"From: {email_data['from']}")
+                    log_print(f"Subject: {email_data['subject']}")
+                    log_print(f"Date: {email_data['date']}")
+                    log_print(f"{'='*60}\n")
                     
                     # Trigger callback
                     try:
-                        print("⚡ Triggering workflow...")
+                        log_print("⚡ Triggering workflow...")
                         callback(email_data)
-                        print("✅ Workflow completed\n")
+                        log_print("✅ Workflow completed\n")
                     except Exception as e:
-                        print(f"❌ Error in workflow: {e}\n")
+                        log_print(f"❌ Error in workflow: {e}\n")
                 
                 # Wait before next check
                 time.sleep(check_interval)
                 
         except KeyboardInterrupt:
-            print("\n\n⚠️ Email listener stopped by user")
+            log_print("\n\n⚠️ Email listener stopped by user")
             self.disconnect()
         except Exception as e:
-            print(f"\n❌ Email listener error: {e}")
+            log_print(f"\n❌ Email listener error: {e}")
             self.disconnect()
 
 

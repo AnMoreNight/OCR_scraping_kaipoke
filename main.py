@@ -5,6 +5,8 @@ Main workflow for Kaipoke OCR and Scraping
 import os
 import time
 import threading
+import sys
+import logging
 from dotenv import load_dotenv
 from typing import List, Dict
 from kaipoke import KaipokeScraper
@@ -14,93 +16,110 @@ from email_listener import EmailListener
 # Load environment variables
 load_dotenv()
 
+# Configure logging for Render
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def log_print(message):
+    """Print and log message for better visibility on Render"""
+    print(message, flush=True)
+    logger.info(message)
+
 
 def process_ocr_workflow(image_path: str):
     """Process OCR on an image and extract structured data"""
-    print(f"\n=== OCR Processing: {image_path} ===")
-    
+    log_print(f"\n=== OCR Processing: {image_path} ===")
+
     # Initialize OCR extractor
     extractor = ImageTextExtractor()
-    
+
     # Check if image exists
     if not os.path.exists(image_path):
-        print(f"Image file not found: {image_path}")
+        log_print(f"Image file not found: {image_path}")
         return None
-    
+
     try:
         # Step 1: Extract text from image
-        print("Extracting text from image...")
+        log_print("Extracting text from image...")
         full_text = extractor.extract_text_from_image(image_path, merge_all=True)
-        
+
         if not full_text:
-            print("No text found in the image")
+            log_print("No text found in the image")
             return None
-        
-        print(f"\n--- Extracted Text ---\n{full_text}\n")
-        
+
+        log_print(f"\n--- Extracted Text ---\n{full_text}\n")
+
         # Step 2: Extract structured data using AI
-        print("Extracting structured data using AI...")
+        log_print("Extracting structured data using AI...")
         structured_data_list = extractor.extract_structured_data(full_text)
-        
+
         if structured_data_list:
-            print("\n=== Extracted Structured Data ===")
+            log_print("\n=== Extracted Structured Data ===")
             for i, structured_data in enumerate(structured_data_list, 1):
-                print(f"\n--- Record {i} ---")
+                log_print(f"\n--- Record {i} ---")
                 if 'name' in structured_data:
-                    print(f"お名前: {structured_data['name']}")
+                    log_print(f"お名前: {structured_data['name']}")
                 if 'date' in structured_data:
-                    print(f"実施日: {structured_data['date']}")
+                    log_print(f"実施日: {structured_data['date']}")
                 if 'time' in structured_data:
-                    print(f"時間: {structured_data['time']}")
-            
+                    log_print(f"時間: {structured_data['time']}")
+
             return structured_data_list
         else:
-            print("No structured data found in the text")
+            log_print("No structured data found in the text")
             return None
-            
+
     except Exception as e:
-        print(f"Error in OCR processing: {e}")
+        log_print(f"Error in OCR processing: {e}")
         return None
 
 
 def process_upload_workflow(ocr_results: List):
     """Upload OCR results to Kaipoke"""
-    print("\n=== Kaipoke Upload Workflow ===")
-    
+    log_print("\n=== Kaipoke Upload Workflow ===")
+
     if not ocr_results:
-        print("No OCR results to upload")
+        log_print("No OCR results to upload")
         return False, None
-    
+
     # Initialize Kaipoke client
     kaipoke_client = KaipokeScraper()
-    
+
     try:
         # Step 1: Login to Kaipoke
+        log_print("Attempting to login to Kaipoke...")
         login_success = kaipoke_client.login()
-        
+
         if not login_success:
-            print("❌ Login failed. Cannot upload data.")
+            log_print("❌ Login failed. Cannot upload data.")
             return False, kaipoke_client
-        
+
         # Step 2: Navigate to target page
+        log_print("Navigating to target page...")
         nav_success = kaipoke_client.navigate_to_target_page()
-        
+
         if not nav_success:
-            print("❌ Failed to navigate to target page.")
+            log_print("❌ Failed to navigate to target page.")
             return False, kaipoke_client
-        
+
         # Step 3: Show OCR data ready for upload
-        print("\n📋 OCR Results ready for upload:")
+        log_print("\n📋 OCR Results ready for upload:")
         for i, result in enumerate(ocr_results, 1):
-            print(f"  {i}. {result}")
-        
-        print("\n⚠️ Upload/Insert functionality will be implemented here based on the target page form structure")
-        
+            log_print(f"  {i}. {result}")
+
+        log_print("\n⚠️ Upload/Insert functionality will be implemented here based on the target page form structure")
+
         # Return client to keep browser open
         return True, kaipoke_client
-            
+
     except Exception as e:
-        print(f"Error in upload workflow: {e}")
+        log_print(f"Error in upload workflow: {e}")
         return False, None
 
 
@@ -112,46 +131,46 @@ def run_workflow(image_path: str):
     if ocr_results:
         upload_success, kaipoke_client = process_upload_workflow(ocr_results)
         if upload_success:
-            print("\n✅ OCR results are ready for upload to Kaipoke!")
-            print("\n🌐 Browser will stay open indefinitely.")
-            print("⚠️ Please close the browser window manually when you're done.")
+            log_print("\n✅ OCR results are ready for upload to Kaipoke!")
+            log_print("\n🌐 Browser will stay open indefinitely.")
+            log_print("⚠️ Please close the browser window manually when you're done.")
         else:
-            print("\n❌ Failed to process upload workflow")
+            log_print("\n❌ Failed to process upload workflow")
     else:
-        print("\n⚠️ No OCR results to upload")
+        log_print("\n⚠️ No OCR results to upload")
 
 
 def email_triggered_workflow(email_data: Dict):
     """Workflow triggered by email"""
-    print(f"\n{'='*70}")
-    print("⚡ EMAIL TRIGGERED WORKFLOW")
-    print(f"{'='*70}")
-    print(f"📧 Email From: {email_data['from']}")
-    print(f"📧 Subject: {email_data['subject']}")
-    print(f"📧 Date: {email_data['date']}")
-    print(f"📎 Has Attachments: {email_data.get('has_attachments', False)}")
-    print(f"🖼️ Has Images: {email_data.get('has_images', False)}")
-    print(f"{'='*70}\n")
+    log_print(f"\n{'='*70}")
+    log_print("⚡ EMAIL TRIGGERED WORKFLOW")
+    log_print(f"{'='*70}")
+    log_print(f"📧 Email From: {email_data['from']}")
+    log_print(f"📧 Subject: {email_data['subject']}")
+    log_print(f"📧 Date: {email_data['date']}")
+    log_print(f"📎 Has Attachments: {email_data.get('has_attachments', False)}")
+    log_print(f"🖼️ Has Images: {email_data.get('has_images', False)}")
+    log_print(f"{'='*70}\n")
     
     # Check if email has image attachments
     if email_data.get('has_images', False):
         image_attachments = email_data.get('image_attachments', [])
-        print(f"📸 Found {len(image_attachments)} image attachment(s):")
+        log_print(f"📸 Found {len(image_attachments)} image attachment(s):")
         
         for i, img in enumerate(image_attachments, 1):
-            print(f"  {i}. {img['filename']} ({img['size']} bytes)")
+            log_print(f"  {i}. {img['filename']} ({img['size']} bytes)")
         
         # Process the first image attachment
         if image_attachments:
             first_image = image_attachments[0]
-            print(f"\n🔄 Processing first image: {first_image['filename']}")
+            log_print(f"\n🔄 Processing first image: {first_image['filename']}")
             
             # Save image attachment to temporary file
             temp_image_path = f"temp_email_image_{int(time.time())}.jpg"
             try:
                 with open(temp_image_path, 'wb') as f:
                     f.write(first_image['content'])
-                print(f"💾 Saved image to: {temp_image_path}")
+                log_print(f"💾 Saved image to: {temp_image_path}")
                 
                 # Run the workflow with the email image
                 run_workflow(temp_image_path)
@@ -159,50 +178,52 @@ def email_triggered_workflow(email_data: Dict):
                 # Clean up temporary file
                 try:
                     os.remove(temp_image_path)
-                    print(f"🗑️ Cleaned up temporary file: {temp_image_path}")
+                    log_print(f"🗑️ Cleaned up temporary file: {temp_image_path}")
                 except:
-                    print(f"⚠️ Could not delete temporary file: {temp_image_path}")
+                    log_print(f"⚠️ Could not delete temporary file: {temp_image_path}")
                     
             except Exception as e:
-                print(f"❌ Error processing email image: {e}")
-                print("💡 Please check the image file and try again")
+                log_print(f"❌ Error processing email image: {e}")
+                log_print("💡 Please check the image file and try again")
         else:
-            print("❌ No image attachments found, skipping workflow")
+            log_print("❌ No image attachments found, skipping workflow")
     else:
-        print("📧 No image attachments in email")
-        print("❌ Skipping workflow - no images to process")
-        print("💡 Please send an email with an image attachment to process")
+        log_print("📧 No image attachments in email")
+        log_print("❌ Skipping workflow - no images to process")
+        log_print("💡 Please send an email with an image attachment to process")
 
 
 def start_email_listener():
     """Start email listener in background thread"""
-    print("\n📧 Starting Email Listener in background...")
+    log_print("\n📧 Starting Email Listener in background...")
     
     # Create email listener
     listener = EmailListener()
     
     # Connect to email server
     if listener.connect():
+        log_print("✅ Email listener connected successfully!")
         # Start listening for emails
         listener.listen(email_triggered_workflow, check_interval=10)
     else:
-        print("❌ Failed to connect to email server. Please check your .env file.")
-        print("\nTroubleshooting:")
-        print("1. Check EMAIL_ADDRESS and EMAIL_PASSWORD in .env")
-        print("2. For Gmail, use App Password (not regular password)")
-        print("3. Enable 2-factor authentication on Gmail")
-        print("4. Generate App Password at: https://myaccount.google.com/apppasswords")
+        log_print("❌ Failed to connect to email server. Please check your .env file.")
+        log_print("\nTroubleshooting:")
+        log_print("1. Check EMAIL_ADDRESS and EMAIL_PASSWORD in .env")
+        log_print("2. For Gmail, use App Password (not regular password)")
+        log_print("3. Enable 2-factor authentication on Gmail")
+        log_print("4. Generate App Password at: https://myaccount.google.com/apppasswords")
 
 
 def main():
     """Main entry point - Web Service with Email Listener"""
-    print("=" * 70)
-    print("=== Kaipoke OCR Workflow with Email Trigger ===")
-    print("=" * 70)
-    print("🌐 Web Service Mode - Processing images from email attachments")
-    print("=" * 70)
+    log_print("=" * 70)
+    log_print("=== Kaipoke OCR Workflow with Email Trigger ===")
+    log_print("=" * 70)
+    log_print("🌐 Web Service Mode - Processing images from email attachments")
+    log_print("=" * 70)
     
     # Start email listener in background thread
+    log_print("🚀 Starting email listener thread...")
     email_thread = threading.Thread(target=start_email_listener, daemon=True)
     email_thread.start()
     
@@ -234,24 +255,25 @@ def main():
         # Start HTTP server on port 10000 (Render's assigned port)
         port = int(os.environ.get('PORT', 10000))
         server = HTTPServer(('0.0.0.0', port), HealthHandler)
-        print(f"🌐 HTTP server started on port {port}")
-        print(f"📧 Email listener running in background")
-        print(f"💡 Service will stay alive and process emails")
+        log_print(f"🌐 HTTP server started on port {port}")
+        log_print(f"📧 Email listener running in background")
+        log_print(f"💡 Service will stay alive and process emails")
+        log_print(f"🔗 Health check available at: http://localhost:{port}/health")
         
         # Keep server running
         server.serve_forever()
         
     except Exception as e:
-        print(f"❌ Error starting HTTP server: {e}")
-        print("🔄 Falling back to simple keep-alive loop...")
+        log_print(f"❌ Error starting HTTP server: {e}")
+        log_print("🔄 Falling back to simple keep-alive loop...")
         
         # Fallback: simple keep-alive loop
         try:
             while True:
                 time.sleep(60)  # Sleep for 1 minute
-                print("💓 Service alive - checking emails...")
+                log_print("💓 Service alive - checking emails...")
         except KeyboardInterrupt:
-            print("\n⚠️ Service stopped")
+            log_print("\n⚠️ Service stopped")
 
 if __name__ == "__main__":
     main()
