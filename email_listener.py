@@ -50,7 +50,7 @@ class EmailListener:
         self.seen_uids = set()
         
     def connect(self) -> bool:
-        """Connect to email server"""
+        """Connect to email server with improved error handling"""
         if not all([self.email_address, self.email_password]):
             log_print("❌ Error: EMAIL_ADDRESS and EMAIL_PASSWORD must be set in .env file")
             return False
@@ -59,8 +59,13 @@ class EmailListener:
             log_print(f"📧 Connecting to email server: {self.email_server}")
             log_print(f"📧 Email account: {self.email_address}")
             
-            # Connect to IMAP server
-            self.client = IMAPClient(self.email_server, ssl=True)
+            # Connect to IMAP server with timeout settings
+            self.client = IMAPClient(
+                self.email_server, 
+                ssl=True,
+                timeout=30,  # 30 second timeout
+                use_uid=True  # Use UID for better reliability
+            )
             
             # Login
             self.client.login(self.email_address, self.email_password)
@@ -72,14 +77,19 @@ class EmailListener:
             self.is_connected = True
             
             # Get existing email UIDs to avoid processing old emails
-            messages = self.client.search(['ALL'])
-            self.seen_uids = set(messages)
-            log_print(f"📧 Found {len(self.seen_uids)} existing emails (will be ignored)")
+            try:
+                messages = self.client.search(['ALL'])
+                self.seen_uids = set(messages)
+                log_print(f"📧 Found {len(self.seen_uids)} existing emails (will be ignored)")
+            except Exception as search_error:
+                log_print(f"⚠️ Warning: Could not search existing emails: {search_error}")
+                self.seen_uids = set()  # Start with empty set if search fails
             
             return True
             
         except Exception as e:
             log_print(f"❌ Error connecting to email server: {e}")
+            self.is_connected = False
             return False
     
     def disconnect(self):
@@ -92,10 +102,28 @@ class EmailListener:
                 pass
         self.is_connected = False
     
+    def check_connection_health(self) -> bool:
+        """Check if the IMAP connection is still healthy"""
+        if not self.is_connected or not self.client:
+            return False
+        
+        try:
+            # Try a simple NOOP command to check connection
+            self.client.noop()
+            return True
+        except Exception as e:
+            log_print(f"⚠️ Connection health check failed: {e}")
+            self.is_connected = False
+            return False
+    
     def check_new_emails(self) -> List[Dict]:
-        """Check for new emails"""
-        if not self.is_connected:
-            return []
+        """Check for new emails with connection recovery"""
+        # Check connection health first
+        if not self.check_connection_health():
+            log_print("⚠️ Connection unhealthy, attempting to reconnect...")
+            if not self.connect():
+                log_print("❌ Failed to reconnect to email server")
+                return []
         
         try:
             # Search for all emails
@@ -124,7 +152,21 @@ class EmailListener:
             
         except Exception as e:
             log_print(f"❌ Error checking emails: {e}")
-            return []
+            log_print("🔄 Attempting to reconnect to email server...")
+            
+            # Try to reconnect
+            try:
+                self.disconnect()
+                time.sleep(5)  # Wait 5 seconds before reconnecting
+                if self.connect():
+                    log_print("✅ Successfully reconnected to email server")
+                    return []  # Return empty for this check, will try again next time
+                else:
+                    log_print("❌ Failed to reconnect to email server")
+                    return []
+            except Exception as reconnect_error:
+                log_print(f"❌ Reconnection failed: {reconnect_error}")
+                return []
     
     def get_email_details(self, uid: int) -> Optional[Dict]:
         """Get details of a specific email"""
