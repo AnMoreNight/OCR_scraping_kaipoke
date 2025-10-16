@@ -119,6 +119,19 @@ class EmailListener:
             # Parse the email
             message = pyzmail.PyzMessage.factory(raw_message)
             
+            # Check for image attachments
+            image_attachments = []
+            for part in message.mailparts:
+                if part.is_attachment and part.filename:
+                    # Check if it's an image file
+                    filename_lower = part.filename.lower()
+                    if any(filename_lower.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp']):
+                        image_attachments.append({
+                            'filename': part.filename,
+                            'content': part.get_payload(),
+                            'size': len(part.get_payload())
+                        })
+            
             # Extract details
             email_data = {
                 'uid': uid,
@@ -128,7 +141,9 @@ class EmailListener:
                 'date': message.get_decoded_header('date'),
                 'body_text': message.text_part.get_payload().decode(message.text_part.charset) if message.text_part else '',
                 'body_html': message.html_part.get_payload().decode(message.html_part.charset) if message.html_part else '',
-                'has_attachments': len(message.mailparts) > 1
+                'has_attachments': len(message.mailparts) > 1,
+                'image_attachments': image_attachments,
+                'has_images': len(image_attachments) > 0
             }
             
             return email_data

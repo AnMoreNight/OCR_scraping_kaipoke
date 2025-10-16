@@ -128,15 +128,56 @@ def email_triggered_workflow(email_data: Dict):
     print(f"📧 Email From: {email_data['from']}")
     print(f"📧 Subject: {email_data['subject']}")
     print(f"📧 Date: {email_data['date']}")
+    print(f"📎 Has Attachments: {email_data.get('has_attachments', False)}")
+    print(f"🖼️ Has Images: {email_data.get('has_images', False)}")
     print(f"{'='*70}\n")
     
-    # Get image path from user or use default
-    image_path = os.getenv('DEFAULT_IMAGE_PATH', 'images/IMG_1281.jpeg')
-    
-    print(f"📸 Processing image: {image_path}")
-    
-    # Run the workflow
-    run_workflow(image_path)
+    # Check if email has image attachments
+    if email_data.get('has_images', False):
+        image_attachments = email_data.get('image_attachments', [])
+        print(f"📸 Found {len(image_attachments)} image attachment(s):")
+        
+        for i, img in enumerate(image_attachments, 1):
+            print(f"  {i}. {img['filename']} ({img['size']} bytes)")
+        
+        # Process the first image attachment
+        if image_attachments:
+            first_image = image_attachments[0]
+            print(f"\n🔄 Processing first image: {first_image['filename']}")
+            
+            # Save image attachment to temporary file
+            temp_image_path = f"temp_email_image_{int(time.time())}.jpg"
+            try:
+                with open(temp_image_path, 'wb') as f:
+                    f.write(first_image['content'])
+                print(f"💾 Saved image to: {temp_image_path}")
+                
+                # Run the workflow with the email image
+                run_workflow(temp_image_path)
+                
+                # Clean up temporary file
+                try:
+                    os.remove(temp_image_path)
+                    print(f"🗑️ Cleaned up temporary file: {temp_image_path}")
+                except:
+                    print(f"⚠️ Could not delete temporary file: {temp_image_path}")
+                    
+            except Exception as e:
+                print(f"❌ Error processing email image: {e}")
+                # Fallback to default image
+                print("🔄 Falling back to default image...")
+                default_image_path = os.getenv('DEFAULT_IMAGE_PATH', 'images/IMG_1281.jpeg')
+                run_workflow(default_image_path)
+        else:
+            print("❌ No image attachments found, skipping workflow")
+    else:
+        print("📧 No image attachments in email")
+        print("🔄 Using default image for processing...")
+        
+        # Use default image if no attachments
+        default_image_path = os.getenv('DEFAULT_IMAGE_PATH', 'images/IMG_1281.jpeg')
+        print(f"📸 Processing default image: {default_image_path}")
+        run_workflow(default_image_path)
 
 
 def main():
