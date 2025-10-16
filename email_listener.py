@@ -49,6 +49,29 @@ class EmailListener:
         # Tracking
         self.seen_uids = set()
         
+        # Custom folder for OCR processing
+        self.ocr_folder = 'OCR_Processing'
+    
+    def setup_ocr_folder(self) -> bool:
+        """Create and setup OCR processing folder"""
+        try:
+            # Check if folder exists
+            folders = self.client.list_folders()
+            folder_names = [folder[2] for folder in folders]
+            
+            if self.ocr_folder not in folder_names:
+                # Create the folder
+                self.client.create_folder(self.ocr_folder)
+                log_print(f"✅ Created custom folder: {self.ocr_folder}")
+            else:
+                log_print(f"📁 Using existing folder: {self.ocr_folder}")
+            
+            return True
+        except Exception as e:
+            log_print(f"⚠️ Could not setup OCR folder: {e}")
+            log_print(f"📁 Falling back to default folder: {self.email_folder}")
+            return False
+    
     def connect(self) -> bool:
         """Connect to email server with improved error handling"""
         if not all([self.email_address, self.email_password]):
@@ -70,8 +93,15 @@ class EmailListener:
             # Login
             self.client.login(self.email_address, self.email_password)
             
-            # Select folder
-            self.client.select_folder(self.email_folder)
+            # Try to setup custom OCR folder first
+            if self.setup_ocr_folder():
+                # Use custom OCR folder
+                self.client.select_folder(self.ocr_folder)
+                log_print(f"📁 Monitoring custom folder: {self.ocr_folder}")
+            else:
+                # Fall back to default folder
+                self.client.select_folder(self.email_folder)
+                log_print(f"📁 Monitoring default folder: {self.email_folder}")
             
             log_print("✅ Successfully connected to email server")
             self.is_connected = True
@@ -126,8 +156,8 @@ class EmailListener:
                 return []
         
         try:
-            # Search for all emails
-            messages = self.client.search(['ALL'])
+            # Search for unread emails only (better than ALL)
+            messages = self.client.search(['UNSEEN'])
             
             # Find new emails
             new_uids = set(messages) - self.seen_uids
