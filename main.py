@@ -204,7 +204,7 @@ def start_email_listener():
     if listener.connect():
         log_print("✅ Email listener connected successfully!")
         # Start listening for emails
-        listener.listen(email_triggered_workflow, check_interval=10)
+        listener.listen(email_triggered_workflow, check_interval=60)
     else:
         log_print("❌ Failed to connect to email server. Please check your .env file.")
         log_print("\nTroubleshooting:")

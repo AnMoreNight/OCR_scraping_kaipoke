@@ -169,13 +169,13 @@ class EmailListener:
             log_print(f"Error getting email details: {e}")
             return None
     
-    def listen(self, callback: Callable, check_interval: int = 10):
+    def listen(self, callback: Callable, check_interval: int = 60):
         """
         Listen for new emails and trigger callback function
         
         Args:
             callback: Function to call when new email arrives (receives email_data dict)
-            check_interval: Seconds between email checks (default: 10)
+            check_interval: Seconds between email checks (default: 60)
         """
         log_print(f"\n🎧 Starting email listener...")
         log_print(f"📧 Monitoring: {self.email_address}")
@@ -183,10 +183,24 @@ class EmailListener:
         log_print(f"⏱️ Check interval: {check_interval} seconds")
         log_print(f"\n⚡ Waiting for new emails... (Press Ctrl+C to stop)\n")
         
+        # Initialize schedule counter
+        schedule_order = 0
+        
         try:
             while True:
+                # Increment schedule order and log current time
+                schedule_order += 1
+                current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                log_print(f"\n🕐 SCHEDULE CHECK #{schedule_order} - {current_time}")
+                log_print(f"📧 Checking for new emails in {self.email_folder}...")
+                
                 # Check for new emails
                 new_emails = self.check_new_emails()
+                
+                if new_emails:
+                    log_print(f"📬 Found {len(new_emails)} new email(s) in this check!")
+                else:
+                    log_print(f"📭 No new emails found in this check")
                 
                 # Process each new email
                 for email_data in new_emails:
@@ -204,6 +218,11 @@ class EmailListener:
                         log_print("✅ Workflow completed\n")
                     except Exception as e:
                         log_print(f"❌ Error in workflow: {e}\n")
+                
+                # Log next check time
+                next_check_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + check_interval))
+                log_print(f"⏰ Next check scheduled for: {next_check_time}")
+                log_print(f"💤 Waiting {check_interval} seconds until next check...\n")
                 
                 # Wait before next check
                 time.sleep(check_interval)
