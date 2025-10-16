@@ -46,7 +46,6 @@ Extract text from images using Google Cloud Vision API and scrape data from Kaip
    EMAIL_ADDRESS=your-email@gmail.com
    EMAIL_PASSWORD=your-app-password
    EMAIL_FOLDER=INBOX
-   DEFAULT_IMAGE_PATH=images/IMG_1281.jpeg
    ```
 
 5. **Get OpenAI API Key:**
@@ -65,22 +64,13 @@ Extract text from images using Google Cloud Vision API and scrape data from Kaip
 7. **Enable APIs in Google Cloud Console:**
    - Cloud Vision API
 
-## Usage Modes
+## Usage
 
-### Mode 1: Manual Mode
-Run workflow once with a specific image:
+### Email Trigger Mode
+Automatically run workflow when you receive an email with image attachments:
 ```bash
 python main.py
-# Select option 1
-# Enter image path
-```
-
-### Mode 2: Email Trigger Mode
-Automatically run workflow when you receive an email:
-```bash
-python main.py
-# Select option 2
-# Script will monitor your inbox and trigger workflow on new emails
+# Script will monitor your inbox and trigger workflow on new emails with images
 ```
 
 ## Usage Examples

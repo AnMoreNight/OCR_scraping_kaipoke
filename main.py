@@ -164,67 +164,40 @@ def email_triggered_workflow(email_data: Dict):
                     
             except Exception as e:
                 print(f"❌ Error processing email image: {e}")
-                # Fallback to default image
-                print("🔄 Falling back to default image...")
-                default_image_path = os.getenv('DEFAULT_IMAGE_PATH', 'images/IMG_1281.jpeg')
-                run_workflow(default_image_path)
+                print("💡 Please check the image file and try again")
         else:
             print("❌ No image attachments found, skipping workflow")
     else:
         print("📧 No image attachments in email")
-        print("🔄 Using default image for processing...")
-        
-        # Use default image if no attachments
-        default_image_path = os.getenv('DEFAULT_IMAGE_PATH', 'images/IMG_1281.jpeg')
-        print(f"📸 Processing default image: {default_image_path}")
-        run_workflow(default_image_path)
+        print("❌ Skipping workflow - no images to process")
+        print("💡 Please send an email with an image attachment to process")
 
 
 def main():
-    """Main entry point"""
+    """Main entry point - Email Trigger Mode Only"""
     print("=" * 70)
     print("=== Kaipoke OCR Workflow with Email Trigger ===")
     print("=" * 70)
+    print("📧 Email Trigger Mode - Processing images from email attachments")
+    print("=" * 70)
     
-    print("\nSelect mode:")
-    print("1. Manual mode - Run workflow once")
-    print("2. Email trigger mode - Wait for emails and run workflow automatically")
+    # Email trigger mode
+    print("\n📧 Starting Email Trigger Mode...")
     
-    choice = input("\nEnter choice (1 or 2): ").strip()
+    # Create email listener
+    listener = EmailListener()
     
-    if choice == "2":
-        # Email trigger mode
-        print("\n📧 Starting Email Trigger Mode...")
-        
-        # Create email listener
-        listener = EmailListener()
-        
-        # Connect to email server
-        if listener.connect():
-            # Start listening for emails
-            listener.listen(email_triggered_workflow, check_interval=10)
-        else:
-            print("❌ Failed to connect to email server. Please check your .env file.")
+    # Connect to email server
+    if listener.connect():
+        # Start listening for emails
+        listener.listen(email_triggered_workflow, check_interval=10)
     else:
-        # Manual mode
-        print("\n📋 Starting Manual Mode...")
-        
-        # Get image path
-        image_path = input("\nEnter image path (or press Enter for default): ").strip()
-        if not image_path:
-            image_path = "images/IMG_1281.jpeg"
-        
-        # Run workflow
-        run_workflow(image_path)
-        
-        # Keep browser open
-        print("\n💡 Script completed. You can close this terminal or leave it running.")
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n\n⚠️ Ctrl+C detected. Browser will remain open.")
-            print("Close the browser window manually to exit completely.")
+        print("❌ Failed to connect to email server. Please check your .env file.")
+        print("\nTroubleshooting:")
+        print("1. Check EMAIL_ADDRESS and EMAIL_PASSWORD in .env")
+        print("2. For Gmail, use App Password (not regular password)")
+        print("3. Enable 2-factor authentication on Gmail")
+        print("4. Generate App Password at: https://myaccount.google.com/apppasswords")
 
 if __name__ == "__main__":
     main()

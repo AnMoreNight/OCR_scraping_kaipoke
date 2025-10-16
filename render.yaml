@@ -28,5 +28,3 @@ services:
         sync: false
       - key: EMAIL_FOLDER
         value: INBOX
-      - key: DEFAULT_IMAGE_PATH
-        value: images/IMG_1281.jpeg
