@@ -40,6 +40,7 @@ class EmailListener:
         self.email_server = os.getenv('EMAIL_SERVER', 'imap.gmail.com')
         self.email_address = os.getenv('EMAIL_ADDRESS')
         self.email_password = os.getenv('EMAIL_PASSWORD')
+        # Fallback folder when custom OCR folder cannot be created
         self.email_folder = os.getenv('EMAIL_FOLDER', 'INBOX')
         
         # Connection
@@ -69,7 +70,7 @@ class EmailListener:
             return True
         except Exception as e:
             log_print(f"⚠️ Could not setup OCR folder: {e}")
-            log_print(f"📁 Falling back to default folder: {self.email_folder}")
+            log_print(f"📁 Will fallback to: {self.email_folder}")
             return False
     
     def connect(self) -> bool:
