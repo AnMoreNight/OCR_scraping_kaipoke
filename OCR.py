@@ -64,7 +64,7 @@ class ImageTextExtractor:
             return [text.description for text in texts[1:]]
     
     def extract_structured_data(self, full_text: str) -> List[Dict[str, str]]:
-        """Extract all structured data (name, date, time) from Japanese text using AI"""
+        """Extract all structured data from Japanese text using AI"""
         if not self.api_key:
             print("Error: OPENAI_API_KEY not configured")
             return []
@@ -77,23 +77,32 @@ Text: {full_text}
 
 Please extract ALL occurrences of:
 1. Name (お名前) - the person's name
-2. Date (実施日) - the implementation date
+2. Date (実施日) - the implementation date  
 3. Time (時間) - the time period
+4. Facility Name (事業所名) - the facility/institution name
+5. Disability Support Hours (障害者総合支援/身体) - extract the single number value, return 0 if empty or not found
+6. Severe Comprehensive Support (重度包括) - extract the single number value, return 0 if empty or not found
 
-Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time"
+Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time", "facility_name", "disability_support_hours", "severe_comprehensive_support"
 If any information is not found in a record, use null for that field.
 
 Example format:
 [
     {{
-        "name": "平井里沙",
+        "name": "平井 里沙",
         "date": "2025 年 8 月 15 日(金)",
-        "time": "11:30~14:30"
+        "time": "11:30~14:30",
+        "facility_name": "メディヴィレッジ群馬HOME",
+        "disability_support_hours": 4.5,
+        "severe_comprehensive_support": 0
     }},
     {{
-        "name": "田中太郎",
+        "name": "田中 太郎", 
         "date": "2025 年 8 月 16 日(土)",
-        "time": "09:00~12:00"
+        "time": "09:00~12:00",
+        "facility_name": "メディヴィレッジ群馬HOME",
+        "disability_support_hours": 3,
+        "severe_comprehensive_support": 2
     }}
 ]
 
@@ -135,7 +144,7 @@ If there are multiple records, extract all of them. If there's only one record, 
 def main():
     """Example usage for text extraction"""
     extractor = ImageTextExtractor()
-    image_path = "images/IMG_1281.jpeg"
+    image_path = "images/IMG_1260.jpeg"
     
     if not os.path.exists(image_path):
         print(f"Image file not found: {image_path}")
@@ -160,6 +169,12 @@ def main():
                     print(f"実施日: {structured_data['date']}")
                 if 'time' in structured_data:
                     print(f"時間: {structured_data['time']}")
+                if 'facility_name' in structured_data:
+                    print(f"事業所名: {structured_data['facility_name']}")
+                if 'disability_support_hours' in structured_data:
+                    print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
+                if 'severe_comprehensive_support' in structured_data:
+                    print(f"重度包括: {structured_data['severe_comprehensive_support']}")
         else:
             print("No structured data found in the text")
     else:

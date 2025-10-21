@@ -69,6 +69,12 @@ def process_ocr_workflow(image_path: str):
                     log_print(f"実施日: {structured_data['date']}")
                 if 'time' in structured_data:
                     log_print(f"時間: {structured_data['time']}")
+                if 'facility_name' in structured_data:
+                    log_print(f"事業所名: {structured_data['facility_name']}")
+                if 'disability_support_hours' in structured_data:
+                    log_print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
+                if 'severe_comprehensive_support' in structured_data:
+                    log_print(f"重度包括: {structured_data['severe_comprehensive_support']}")
 
             return structured_data_list
         else:
@@ -276,4 +282,7 @@ def main():
             log_print("\n⚠️ Service stopped")
 
 if __name__ == "__main__":
-    main()
+    # main()
+    ocr_results = process_ocr_workflow("images/IMG_1309.jpeg")
+    scraper = KaipokeScraper()
+    scraper.process_with_ocr(ocr_results)
