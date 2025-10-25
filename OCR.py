@@ -31,7 +31,7 @@ class ImageTextExtractor:
                 service_account_info = json.loads(service_account_json)
                 credentials = service_account.Credentials.from_service_account_info(service_account_info)
                 self.vision_client = vision.ImageAnnotatorClient(credentials=credentials)
-                print("✅ Using Google Cloud credentials from GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
+                # print("✅ Using Google Cloud credentials from GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
             else:
                 print("❌ No Google Cloud credentials found!")
                 print("Please set GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
@@ -76,9 +76,9 @@ Extract ALL instances of the following information from this Japanese text and r
 Text: {full_text}
 
 Please extract ALL occurrences of:
-1. Name (お名前) - the person's name
+1. Name (お名前) - the person's name(there can be 2 names in Text but お名前 is the first one)
 2. Date (実施日) - the implementation date  
-3. Time (時間) - the time period
+3. Time (時間) - the time period(must be 2 times : start time and end time, and start time is placed before end time in Text)
 4. Facility Name (事業所名) - the facility/institution name
 5. Disability Support Hours (障害者総合支援/身体) - extract the single number value, return 0 if empty or not found
 6. Severe Comprehensive Support (重度包括) - extract the single number value, return 0 if empty or not found
@@ -116,7 +116,7 @@ If there are multiple records, extract all of them. If there's only one record, 
             )
             
             result_text = response.output_text
-            print(f"AI Response: {response.output_text}")
+            
             # Parse the JSON response exactly matching the documented AI response format.
             # Clean the response text (remove markdown formatting)
             if result_text.startswith("```json"):
@@ -141,45 +141,75 @@ If there are multiple records, extract all of them. If there's only one record, 
             print(f"Error type: {type(e).__name__}")
             return []
     
-def main():
-    """Example usage for text extraction"""
-    extractor = ImageTextExtractor()
-    image_path = "images/IMG_1260.jpeg"
-    
-    if not os.path.exists(image_path):
-        print(f"Image file not found: {image_path}")
-        return
-    
-    # Extract text from image first
-    full_text = extractor.extract_text_from_image(image_path, merge_all=True)
-    print("=========full_text=========")
-    print(full_text)
-    
-    if full_text:
-        # Extract structured data from the full text
-        structured_data_list = extractor.extract_structured_data(full_text)
+    def extract_structured_data_from_image(self, image_data: bytes):
+        """Extract structured data from image bytes"""
         
-        if structured_data_list:
-            print("=== Extracted Structured Data ===")
-            for i, structured_data in enumerate(structured_data_list, 1):
-                print(f"\n--- Record {i} ---")
-                if 'name' in structured_data:
-                    print(f"お名前: {structured_data['name']}")
-                if 'date' in structured_data:
-                    print(f"実施日: {structured_data['date']}")
-                if 'time' in structured_data:
-                    print(f"時間: {structured_data['time']}")
-                if 'facility_name' in structured_data:
-                    print(f"事業所名: {structured_data['facility_name']}")
-                if 'disability_support_hours' in structured_data:
-                    print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
-                if 'severe_comprehensive_support' in structured_data:
-                    print(f"重度包括: {structured_data['severe_comprehensive_support']}")
+        # Save image data to temporary file
+        import tempfile
+        import os
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
+            temp_file.write(image_data)
+            temp_image_path = temp_file.name
+        
+        try:
+            # Extract text from image first
+            full_text = self.extract_text_from_image(temp_image_path, merge_all=True)
+            
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_image_path)
+            except:
+                pass
+        
+        if full_text:
+            # Extract structured data from the full text
+            structured_data_list = self.extract_structured_data(full_text)
+            
+            if structured_data_list:
+                print("=== Extracted Structured Data ===")
+                for i, structured_data in enumerate(structured_data_list, 1):
+                    print(f"\n--- Record {i} ---")
+                    if 'name' in structured_data:
+                        print(f"お名前: {structured_data['name']}")
+                    if 'date' in structured_data:
+                        print(f"実施日: {structured_data['date']}")
+                    if 'time' in structured_data:
+                        print(f"時間: {structured_data['time']}")
+                    if 'facility_name' in structured_data:
+                        print(f"事業所名: {structured_data['facility_name']}")
+                    if 'disability_support_hours' in structured_data:
+                        print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
+                    if 'severe_comprehensive_support' in structured_data:
+                        print(f"重度包括: {structured_data['severe_comprehensive_support']}")
+                return structured_data_list
+            else:
+                print("No structured data found in the text")
+                return []
         else:
-            print("No structured data found in the text")
-    else:
-        print("No text found in the image")
+            print("No text found in the image")
+            return []
 
 
 if __name__ == "__main__":
-    main()
+    with open("images/IMG_1260.jpeg", "rb") as f:
+        image_data = f.read()
+    extractor = ImageTextExtractor()
+    structured_data = extractor.extract_structured_data_from_image(image_data)
+    print("=== Extracted Structured Data ===")
+    for i, structured_data in enumerate(structured_data, 1):
+        print(f"\n--- Record {i} ---")
+        if 'name' in structured_data:
+            print(f"お名前: {structured_data['name']}")
+        if 'date' in structured_data:
+            print(f"実施日: {structured_data['date']}")
+        if 'time' in structured_data:
+            print(f"時間: {structured_data['time']}")
+        if 'facility_name' in structured_data:
+            print(f"事業所名: {structured_data['facility_name']}")
+        if 'disability_support_hours' in structured_data:
+            print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
+        if 'severe_comprehensive_support' in structured_data:
+            print(f"重度包括: {structured_data['severe_comprehensive_support']}")

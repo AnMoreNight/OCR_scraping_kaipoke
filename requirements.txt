@@ -5,3 +5,4 @@ openai
 playwright
 imapclient
 pyzmail36
+PyQt6

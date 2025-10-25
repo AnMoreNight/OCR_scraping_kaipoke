@@ -1,288 +1,371 @@
 """
-Main workflow for Kaipoke OCR and Scraping
+Email Listener - Main Application with PyQt6 UI
+Simple interface for monitoring emails and processing OCR data to Kaipoke
 """
 
-import os
-import time
-import threading
 import sys
+import threading
+import time
+import io
+import subprocess
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
+                             QWidget, QPushButton, QTextEdit, QLabel, QStatusBar,
+                             QMessageBox, QSplitter)
+from PyQt6.QtCore import QThread, pyqtSignal, QTimer
+from PyQt6.QtGui import QFont, QTextCursor
+from email_listener import EmailListener, log_print
 import logging
-from dotenv import load_dotenv
-from typing import List, Dict
-from kaipoke import KaipokeScraper
-from OCR import ImageTextExtractor
-from email_listener import EmailListener
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging for Render
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
-
-def log_print(message):
-    """Print and log message for better visibility on Render"""
-    print(message, flush=True)
-    logger.info(message)
-
-
-def process_ocr_workflow(image_path: str):
-    """Process OCR on an image and extract structured data"""
-    log_print(f"\n=== OCR Processing: {image_path} ===")
-
-    # Initialize OCR extractor
-    extractor = ImageTextExtractor()
-
-    # Check if image exists
-    if not os.path.exists(image_path):
-        log_print(f"Image file not found: {image_path}")
-        return None
-
-    try:
-        # Step 1: Extract text from image
-        log_print("Extracting text from image...")
-        full_text = extractor.extract_text_from_image(image_path, merge_all=True)
-
-        if not full_text:
-            log_print("No text found in the image")
-            return None
-
-        log_print(f"\n--- Extracted Text ---\n{full_text}\n")
-
-        # Step 2: Extract structured data using AI
-        log_print("Extracting structured data using AI...")
-        structured_data_list = extractor.extract_structured_data(full_text)
-
-        if structured_data_list:
-            log_print("\n=== Extracted Structured Data ===")
-            for i, structured_data in enumerate(structured_data_list, 1):
-                log_print(f"\n--- Record {i} ---")
-                if 'name' in structured_data:
-                    log_print(f"お名前: {structured_data['name']}")
-                if 'date' in structured_data:
-                    log_print(f"実施日: {structured_data['date']}")
-                if 'time' in structured_data:
-                    log_print(f"時間: {structured_data['time']}")
-                if 'facility_name' in structured_data:
-                    log_print(f"事業所名: {structured_data['facility_name']}")
-                if 'disability_support_hours' in structured_data:
-                    log_print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
-                if 'severe_comprehensive_support' in structured_data:
-                    log_print(f"重度包括: {structured_data['severe_comprehensive_support']}")
-
-            return structured_data_list
-        else:
-            log_print("No structured data found in the text")
-            return None
-
-    except Exception as e:
-        log_print(f"Error in OCR processing: {e}")
-        return None
-
-
-def process_upload_workflow(ocr_results: List):
-    """Upload OCR results to Kaipoke"""
-    log_print("\n=== Kaipoke Upload Workflow ===")
-
-    if not ocr_results:
-        log_print("No OCR results to upload")
-        return False, None
-
-    # Initialize Kaipoke client
-    kaipoke_client = KaipokeScraper()
-
-    try:
-        # Step 1: Login to Kaipoke
-        log_print("Attempting to login to Kaipoke...")
-        login_success = kaipoke_client.login()
-
-        if not login_success:
-            log_print("❌ Login failed. Cannot upload data.")
-            return False, kaipoke_client
-
-        # Step 2: Navigate to target page
-        log_print("Navigating to target page...")
-        nav_success = kaipoke_client.navigate_to_target_page()
-
-        if not nav_success:
-            log_print("❌ Failed to navigate to target page.")
-            return False, kaipoke_client
-
-        # Step 3: Show OCR data ready for upload
-        log_print("\n📋 OCR Results ready for upload:")
-        for i, result in enumerate(ocr_results, 1):
-            log_print(f"  {i}. {result}")
-
-        log_print("\n⚠️ Upload/Insert functionality will be implemented here based on the target page form structure")
-
-        # Return client to keep browser open
-        return True, kaipoke_client
-
-    except Exception as e:
-        log_print(f"Error in upload workflow: {e}")
-        return False, None
-
-
-def run_workflow(image_path: str):
-    """Run the complete OCR and upload workflow"""
-    ocr_results = process_ocr_workflow(image_path)
-    
-    # Upload workflow
-    if ocr_results:
-        upload_success, kaipoke_client = process_upload_workflow(ocr_results)
-        if upload_success:
-            log_print("\n✅ OCR results are ready for upload to Kaipoke!")
-            log_print("\n🌐 Browser will stay open indefinitely.")
-            log_print("⚠️ Please close the browser window manually when you're done.")
-        else:
-            log_print("\n❌ Failed to process upload workflow")
-    else:
-        log_print("\n⚠️ No OCR results to upload")
-
-
-def email_triggered_workflow(email_data: Dict):
-    """Workflow triggered by email"""
-    log_print(f"\n{'='*70}")
-    log_print("⚡ EMAIL TRIGGERED WORKFLOW")
-    log_print(f"{'='*70}")
-    log_print(f"📧 Email From: {email_data['from']}")
-    log_print(f"📧 Subject: {email_data['subject']}")
-    log_print(f"📧 Date: {email_data['date']}")
-    log_print(f"📎 Has Attachments: {email_data.get('has_attachments', False)}")
-    log_print(f"🖼️ Has Images: {email_data.get('has_images', False)}")
-    log_print(f"{'='*70}\n")
-    
-    # Check if email has image attachments
-    if email_data.get('has_images', False):
-        image_attachments = email_data.get('image_attachments', [])
-        log_print(f"📸 Found {len(image_attachments)} image attachment(s):")
+class LogCapture:
+    """Capture stdout and send to UI"""
+    def __init__(self, log_callback):
+        self.log_callback = log_callback
+        self.original_stdout = sys.stdout
         
-        for i, img in enumerate(image_attachments, 1):
-            log_print(f"  {i}. {img['filename']} ({img['size']} bytes)")
+    def write(self, text):
+        if text.strip():  # Only send non-empty lines
+            self.log_callback(text.strip())
+        return len(text)
+    
+    def flush(self):
+        pass
+
+class EmailListenerThread(QThread):
+    """Thread for running email listener in background"""
+    log_signal = pyqtSignal(str)
+    status_signal = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
+    
+    def __init__(self):
+        super().__init__()
+        self.listener = None
+        self.running = False
+        self.log_capture = None
         
-        # Process the first image attachment
-        if image_attachments:
-            first_image = image_attachments[0]
-            log_print(f"\n🔄 Processing first image: {first_image['filename']}")
+    def run(self):
+        """Run email listener in background thread"""
+        try:
+            self.status_signal.emit("メールリスナーを初期化中...")
+            self.log_signal.emit("🚀 メールリスナーサービスを開始中...")
             
-            # Save image attachment to temporary file
-            temp_image_path = f"temp_email_image_{int(time.time())}.jpg"
+            # Set up log capture to redirect stdout to UI
+            self.log_capture = LogCapture(self.log_signal.emit)
+            sys.stdout = self.log_capture
+            
+            # Create email listener
+            self.listener = EmailListener()
+            
+            # Connect to email server
+            if not self.listener.connect():
+                self.error_signal.emit("❌ メールサーバーへの接続に失敗しました")
+                self.status_signal.emit("接続失敗")
+                return
+            
+            self.status_signal.emit("接続完了 - メールを監視中...")
+            self.log_signal.emit("📧 メールリスナーが正常に開始されました!")
+            
+            # Start listening
+            self.running = True
+            self.listener.listen(check_interval=30)
+            
+        except Exception as e:
+            self.error_signal.emit(f"❌ 致命的エラー: {e}")
+            self.status_signal.emit("エラー")
+        finally:
+            # Restore original stdout
+            if self.log_capture:
+                sys.stdout = self.log_capture.original_stdout
+            self.running = False
+            self.status_signal.emit("停止")
+    
+    def stop(self):
+        """Stop the email listener"""
+        self.running = False
+        if self.listener:
             try:
-                with open(temp_image_path, 'wb') as f:
-                    f.write(first_image['content'])
-                log_print(f"💾 Saved image to: {temp_image_path}")
+                self.listener.stop()  # Request stop first
+                self.listener.disconnect()
+            except:
+                pass
+
+class EmailListenerUI(QMainWindow):
+    """Main UI Window for Email Listener"""
+    
+    def __init__(self):
+        super().__init__()
+        self.listener_thread = None
+        self.init_ui()
+        
+    def init_ui(self):
+        """Initialize the UI components"""
+        self.setWindowTitle("メールリスナー - OCRからKaipokeへ")
+        self.setGeometry(100, 100, 900, 700)
+        
+        # Create central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        # Create main layout
+        main_layout = QVBoxLayout(central_widget)
+        
+        # Create title
+        title_label = QLabel("📧 メールリスナーサービス")
+        title_font = QFont()
+        title_font.setPointSize(18)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #2c3e50; margin: 15px; text-align: center;")
+        main_layout.addWidget(title_label)
+        
+        # Create subtitle
+        subtitle_label = QLabel("メール監視 → OCRデータ抽出 → Kaipokeアップロード")
+        subtitle_font = QFont()
+        subtitle_font.setPointSize(12)
+        subtitle_label.setFont(subtitle_font)
+        subtitle_label.setStyleSheet("color: #7f8c8d; margin: 5px; text-align: center;")
+        main_layout.addWidget(subtitle_label)
+        
+        # Create control buttons layout
+        control_layout = QHBoxLayout()
+        
+        # Start button
+        self.start_button = QPushButton("▶️ サービス開始")
+        self.start_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+                transform: scale(1.05);
+            }
+            QPushButton:disabled {
+                background-color: #95a5a6;
+            }
+        """)
+        self.start_button.clicked.connect(self.start_service)
+        control_layout.addWidget(self.start_button)
+        
+        # Stop button
+        self.stop_button = QPushButton("⏹️ サービス停止")
+        self.stop_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+                transform: scale(1.05);
+            }
+            QPushButton:disabled {
+                background-color: #95a5a6;
+            }
+        """)
+        self.stop_button.clicked.connect(self.stop_service)
+        self.stop_button.setEnabled(False)
+        control_layout.addWidget(self.stop_button)
+        
+        # Clear logs button
+        self.clear_button = QPushButton("🗑️ ログクリア")
+        self.clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+                transform: scale(1.05);
+            }
+        """)
+        self.clear_button.clicked.connect(self.clear_logs)
+        control_layout.addWidget(self.clear_button)
+        
+        # Add stretch to push buttons to the left
+        control_layout.addStretch()
+        main_layout.addLayout(control_layout)
+        
+        # Logs panel
+        logs_label = QLabel("📋 サービスログ")
+        logs_label.setStyleSheet("font-weight: bold; color: #34495e; margin: 10px 5px; font-size: 14px;")
+        main_layout.addWidget(logs_label)
+        
+        self.logs_text = QTextEdit()
+        self.logs_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #2c3e50;
+                color: #ecf0f1;
+                border: 2px solid #34495e;
+                border-radius: 8px;
+                padding: 15px;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+        """)
+        self.logs_text.setReadOnly(True)
+        main_layout.addWidget(self.logs_text)
+        
+        # Status bar
+        self.status_bar = QStatusBar()
+        self.status_bar.setStyleSheet("""
+            QStatusBar {
+                background-color: #34495e;
+                color: #ecf0f1;
+                border-top: 2px solid #2c3e50;
+                padding: 8px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+        """)
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("準備完了 - 'サービス開始'をクリックしてメール監視を開始してください")
+        
+        # Add initial log messages
+        self.add_log("📱 メールリスナーUIが開始されました")
+        self.add_log("💡 'サービス開始'をクリックしてメール監視を開始してください")
+        self.add_log("📧 サービスは画像添付ファイル付きのメールを処理します")
+        self.add_log("🔄 OCRが構造化データを抽出し、Kaipokeにアップロードします")
+        self.add_log("⚙️ .envファイルに必要な認証情報が設定されていることを確認してください")
+        
+    def add_log(self, message):
+        """Add a log message to the logs panel"""
+        timestamp = time.strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+        
+        self.logs_text.append(formatted_message)
+        
+        # Auto-scroll to bottom
+        cursor = self.logs_text.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.logs_text.setTextCursor(cursor)
+        
+    def start_service(self):
+        """Start the email listener service"""
+        try:
+            self.add_log("🚀 メールリスナーサービスを開始中...")
+            
+            # Create and start listener thread
+            self.listener_thread = EmailListenerThread()
+            self.listener_thread.log_signal.connect(self.add_log)
+            self.listener_thread.status_signal.connect(self.update_status)
+            self.listener_thread.error_signal.connect(self.show_error)
+            self.listener_thread.start()
+            
+            # Update UI
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(True)
+            self.status_bar.showMessage("サービス開始中...")
+            
+        except Exception as e:
+            self.add_log(f"❌ サービス開始エラー: {e}")
+            self.show_error(f"サービス開始に失敗しました: {e}")
+    
+    def stop_service(self):
+        """Stop the email listener service"""
+        try:
+            self.add_log("⏹️ メールリスナーサービスを停止中...")
+            
+            if self.listener_thread and self.listener_thread.isRunning():
+                self.listener_thread.stop()
+                self.listener_thread.wait(5000)  # Wait up to 5 seconds
                 
-                # Run the workflow with the email image
-                run_workflow(temp_image_path)
-                
-                # Clean up temporary file
-                try:
-                    os.remove(temp_image_path)
-                    log_print(f"🗑️ Cleaned up temporary file: {temp_image_path}")
-                except:
-                    log_print(f"⚠️ Could not delete temporary file: {temp_image_path}")
+            # Update UI
+            self.start_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
+            self.status_bar.showMessage("サービス停止")
+            self.add_log("✅ サービスが正常に停止しました")
                     
-            except Exception as e:
-                log_print(f"❌ Error processing email image: {e}")
-                log_print("💡 Please check the image file and try again")
+        except Exception as e:
+            self.add_log(f"❌ サービス停止エラー: {e}")
+    
+    def update_status(self, status):
+        """Update status bar message"""
+        self.status_bar.showMessage(status)
+        self.add_log(f"📊 ステータス: {status}")
+    
+    def show_error(self, error_message):
+        """Show error message in dialog and logs"""
+        self.add_log(error_message)
+        QMessageBox.critical(self, "エラー", error_message)
+        
+        # Reset UI state
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.status_bar.showMessage("エラーが発生しました")
+    
+    def clear_logs(self):
+        """Clear the logs panel"""
+        self.logs_text.clear()
+        self.add_log("🗑️ ログをクリアしました")
+    
+    def closeEvent(self, event):
+        """Handle application close event"""
+        if self.listener_thread and self.listener_thread.isRunning():
+            reply = QMessageBox.question(self, '終了', 
+                                       'サービスが実行中です。停止して終了しますか？',
+                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self.stop_service()
+                event.accept()
+            else:
+                event.ignore()
         else:
-            log_print("❌ No image attachments found, skipping workflow")
-    else:
-        log_print("📧 No image attachments in email")
-        log_print("❌ Skipping workflow - no images to process")
-        log_print("💡 Please send an email with an image attachment to process")
-
-
-def start_email_listener():
-    """Start email listener in background thread"""
-    log_print("\n📧 Starting Email Listener in background...")
-    
-    # Create email listener
-    listener = EmailListener()
-    
-    # Connect to email server
-    if listener.connect():
-        log_print("✅ Email listener connected successfully!")
-        # Start listening for emails
-        listener.listen(email_triggered_workflow, check_interval=60)
-    else:
-        log_print("❌ Failed to connect to email server. Please check your .env file.")
-        log_print("\nTroubleshooting:")
-        log_print("1. Check EMAIL_ADDRESS and EMAIL_PASSWORD in .env")
-        log_print("2. For Gmail, use App Password (not regular password)")
-        log_print("3. Enable 2-factor authentication on Gmail")
-        log_print("4. Generate App Password at: https://myaccount.google.com/apppasswords")
-
+            event.accept()
 
 def main():
-    """Main entry point - Web Service with Email Listener"""
-    log_print("=" * 70)
-    log_print("=== Kaipoke OCR Workflow with Email Trigger ===")
-    log_print("=" * 70)
-    log_print("🌐 Web Service Mode - Processing images from email attachments")
-    log_print("=" * 70)
-    
-    # Start email listener in background thread
-    log_print("🚀 Starting email listener thread...")
-    email_thread = threading.Thread(target=start_email_listener, daemon=True)
-    email_thread.start()
-    
-    # Simple HTTP server to keep service alive
+    """Main function to run the UI application"""
     try:
-        from http.server import HTTPServer, BaseHTTPRequestHandler
-        import json
+        # Create QApplication
+        app = QApplication(sys.argv)
         
-        class HealthHandler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                if self.path == '/health':
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
-                    self.end_headers()
-                    response = {
-                        "status": "healthy",
-                        "service": "Kaipoke OCR Email Listener",
-                        "message": "Email listener is running in background"
-                    }
-                    self.wfile.write(json.dumps(response).encode())
-                else:
-                    self.send_response(404)
-                    self.end_headers()
-            
-            def log_message(self, format, *args):
-                # Suppress default logging
-                pass
+        # Set application properties
+        app.setApplicationName("メールリスナー")
+        app.setApplicationVersion("1.0")
         
-        # Start HTTP server on port 10000 (Render's assigned port)
-        port = int(os.environ.get('PORT', 10000))
-        server = HTTPServer(('0.0.0.0', port), HealthHandler)
-        log_print(f"🌐 HTTP server started on port {port}")
-        log_print(f"📧 Email listener running in background")
-        log_print(f"💡 Service will stay alive and process emails")
-        log_print(f"🔗 Health check available at: http://localhost:{port}/health")
+        # Set application style
+        app.setStyleSheet("""
+            QMainWindow {
+                background-color: #ecf0f1;
+            }
+            QWidget {
+                background-color: #ecf0f1;
+            }
+        """)
         
-        # Keep server running
-        server.serve_forever()
+        # Create and show main window
+        window = EmailListenerUI()
+        window.show()
         
+        # Run application
+        sys.exit(app.exec())
+        
+    except ImportError as e:
+        print(f"❌ インポートエラー: {e}")
+        print("💡 PyQt6をインストールしてください:")
+        print("   pip install PyQt6")
+        sys.exit(1)
     except Exception as e:
-        log_print(f"❌ Error starting HTTP server: {e}")
-        log_print("🔄 Falling back to simple keep-alive loop...")
-        
-        # Fallback: simple keep-alive loop
-        try:
-            while True:
-                time.sleep(60)  # Sleep for 1 minute
-                log_print("💓 Service alive - checking emails...")
-        except KeyboardInterrupt:
-            log_print("\n⚠️ Service stopped")
+        print(f"❌ UI開始エラー: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    # main()
-    ocr_results = process_ocr_workflow("images/IMG_1309.jpeg")
-    scraper = KaipokeScraper()
-    scraper.process_with_ocr(ocr_results)
+    main()
