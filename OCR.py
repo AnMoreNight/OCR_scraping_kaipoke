@@ -78,7 +78,7 @@ Text: {full_text}
 Please extract ALL occurrences of:
 1. Name (お名前) - the person's name(there can be 2 names in Text but お名前 is the first one)
 2. Date (実施日) - the implementation date  
-3. Time (時間) - the time period(must be 2 times : start time and end time, and start time is placed before end time in Text)
+3. Time (時間) - start and end time pairs(arranged in the order of start, end, start and end in Text, once find time pairs use this format : start time ~ end time)
 4. Facility Name (事業所名) - the facility/institution name
 5. Disability Support Hours (障害者総合支援/身体) - extract the single number value, return 0 if empty or not found
 6. Severe Comprehensive Support (重度包括) - extract the single number value, return 0 if empty or not found
@@ -86,7 +86,7 @@ Please extract ALL occurrences of:
 Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time", "facility_name", "disability_support_hours", "severe_comprehensive_support"
 If any information is not found in a record, use null for that field.
 
-Example format:
+reference this Example format:
 [
     {{
         "name": "平井 里沙",
@@ -165,6 +165,8 @@ If there are multiple records, extract all of them. If there's only one record, 
                 pass
         
         if full_text:
+            print("=============== full text ==================")
+            print(full_text)
             # Extract structured data from the full text
             structured_data_list = self.extract_structured_data(full_text)
             
@@ -194,7 +196,7 @@ If there are multiple records, extract all of them. If there's only one record, 
 
 
 if __name__ == "__main__":
-    with open("images/IMG_1260.jpeg", "rb") as f:
+    with open("images/2.jpeg", "rb") as f:
         image_data = f.read()
     extractor = ImageTextExtractor()
     structured_data = extractor.extract_structured_data_from_image(image_data)
