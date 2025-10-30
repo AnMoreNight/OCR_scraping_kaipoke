@@ -30,6 +30,7 @@ class ImageTextExtractor:
                 # Parse JSON from environment variable
                 service_account_info = json.loads(service_account_json)
                 credentials = service_account.Credentials.from_service_account_info(service_account_info)
+                # imageContext = vision.ImageContext(language_hints=["ja"])
                 self.vision_client = vision.ImageAnnotatorClient(credentials=credentials)
                 # print("✅ Using Google Cloud credentials from GOOGLE_SERVICE_ACCOUNT_JSON environment variable")
             else:
@@ -77,8 +78,12 @@ Text: {full_text}
 
 Please extract ALL occurrences of:
 1. Name (お名前) - the person's name(there can be 2 names in Text but お名前 is the first one)
-2. Date (実施日) - the implementation date  
-3. Time (時間) - start and end time pairs(arranged in the order of start, end, start and end in Text, once find time pairs use this format : start time ~ end time)
+2. Date (実施日) - the implementation date(It can't be earlier than last year, if it's earlier, please fix it to the current year)
+3. Time (時間) 
+    - :00 20 such format means 20:00. it's time format
+    - can't be arranged "(" or ")" before the time. if there is "(" or ")" before the time, it's "1" in the time so add "1" to the time.
+    for example "(7:30" is "17:30" not 07:30 or 7:30.
+    - there are even times(first one is the start time, second one is the end time, third one is the start time, fourth one is the end time, and so on, end time can be earlier than start time)
 4. Facility Name (事業所名) - the facility/institution name
 5. Disability Support Hours (障害者総合支援/身体) - extract the single number value, return 0 if empty or not found
 6. Severe Comprehensive Support (重度包括) - extract the single number value, return 0 if empty or not found
@@ -99,7 +104,7 @@ reference this Example format:
     {{
         "name": "田中 太郎", 
         "date": "2025 年 8 月 16 日(土)",
-        "time": "09:00~12:00",
+        "time": "20:00~09:00",
         "facility_name": "メディヴィレッジ群馬HOME",
         "disability_support_hours": 3,
         "severe_comprehensive_support": 2
@@ -194,12 +199,67 @@ If there are multiple records, extract all of them. If there's only one record, 
             print("No text found in the image")
             return []
 
+    def extract_text_from_image_openai(self, image_path: str) -> str:
+        """Extract text from an image using OpenAI's Vision (GPT-4-vision) API"""
+        if not self.api_key:
+            print("Error: OPENAI_API_KEY not set in environment variables")
+            return ""
+        import base64
+        from openai import OpenAI
+
+        try:
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+            b64_image = base64.b64encode(image_data).decode()
+
+            client = OpenAI(api_key=self.api_key)
+            # GPT-4-vision endpoint as of late 2023
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI that reads Japanese documents and returns only the full readable text from the image."},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Extract all Japanese readable text from this image. Respond with ONLY text, no explanations."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}}
+                        ]
+                    }
+                ],
+                max_tokens=2048
+            )
+            text = response.choices[0].message.content.strip()
+            return text
+        except Exception as e:
+            print(f"Error extracting text with OpenAI Vision: {e}")
+            return ""
+
 
 if __name__ == "__main__":
-    with open("images/2.jpeg", "rb") as f:
+    USE_OPENAI_OCR = False  # Set this to False to use Google OCR
+    with open("images/7.jpeg", "rb") as f:
         image_data = f.read()
     extractor = ImageTextExtractor()
-    structured_data = extractor.extract_structured_data_from_image(image_data)
+
+    if USE_OPENAI_OCR:
+        # New: Use OpenAI Vision OCR
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+            tmp.write(image_data)
+            tmp_path = tmp.name
+        try:
+            print("Using OpenAI Vision for OCR...")
+            full_text = extractor.extract_text_from_image_openai(tmp_path)
+            print("=============== full text (OpenAI Vision) ==================")
+            print(full_text)
+            structured_data = extractor.extract_structured_data(full_text)
+        finally:
+            import os
+            os.unlink(tmp_path)
+    else:
+        # Original: Google OCR
+        structured_data = extractor.extract_structured_data_from_image(image_data)
+
     print("=== Extracted Structured Data ===")
     for i, structured_data in enumerate(structured_data, 1):
         print(f"\n--- Record {i} ---")
