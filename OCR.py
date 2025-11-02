@@ -88,8 +88,10 @@ Please extract ALL occurrences of:
 4. Facility Name (事業所名) - the facility/institution name
 5. Disability Support Hours (障害者総合支援/身体) - extract the single number value, return 0 if empty or not found
 6. Severe Comprehensive Support (重度包括) - extract the single number value, return 0 if empty or not found
+7. Severe Visitation (重度訪問) - extract the single number value, return 0 if empty or not found
+8. Housework (家事) - extract the single number value, return 0 if empty or not found
 
-Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time", "facility_name", "disability_support_hours", "severe_comprehensive_support"
+Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time", "facility_name", "disability_support_hours", "severe_comprehensive_support", "severe_visitation", "housework"
 If any information is not found in a record, use null for that field.
 
 reference this Example format:
@@ -100,7 +102,9 @@ reference this Example format:
         "time": "11:30~14:30",
         "facility_name": "メディヴィレッジ群馬HOME",
         "disability_support_hours": 4.5,
-        "severe_comprehensive_support": 0
+        "severe_comprehensive_support": 0,
+        "severe_visitation": 0,
+        "housework": 2
     }},
     {{
         "name": "田中 太郎", 
@@ -108,7 +112,9 @@ reference this Example format:
         "time": "20:00~09:00",
         "facility_name": "メディヴィレッジ群馬HOME",
         "disability_support_hours": 3,
-        "severe_comprehensive_support": 2
+        "severe_comprehensive_support": 2,
+        "severe_visitation": 1.5,
+        "housework": 0
     }}
 ]
 
@@ -192,6 +198,10 @@ If there are multiple records, extract all of them. If there's only one record, 
                         print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
                     if 'severe_comprehensive_support' in structured_data:
                         print(f"重度包括: {structured_data['severe_comprehensive_support']}")
+                    if 'severe_visitation' in structured_data:
+                        print(f"重度訪問: {structured_data['severe_visitation']}")
+                    if 'housework' in structured_data:
+                        print(f"家事: {structured_data['housework']}")
                 return structured_data_list
             else:
                 print("No structured data found in the text")
@@ -238,7 +248,7 @@ If there are multiple records, extract all of them. If there's only one record, 
 
 if __name__ == "__main__":
     USE_OPENAI_OCR = False  # Set this to False to use Google OCR
-    with open("images/4.jpeg", "rb") as f:
+    with open("image.jpeg", "rb") as f:
         image_data = f.read()
     extractor = ImageTextExtractor()
 
@@ -276,3 +286,7 @@ if __name__ == "__main__":
             print(f"障害者総合支援/身体: {structured_data['disability_support_hours']}")
         if 'severe_comprehensive_support' in structured_data:
             print(f"重度包括: {structured_data['severe_comprehensive_support']}")
+        if 'severe_visitation' in structured_data:
+            print(f"重度訪問: {structured_data['severe_visitation']}")
+        if 'housework' in structured_data:
+            print(f"家事: {structured_data['housework']}")
