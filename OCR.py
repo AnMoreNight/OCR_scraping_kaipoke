@@ -79,8 +79,9 @@ Text: {full_text}
 Please extract ALL occurrences of:
 1. Name (お名前) - the person's name(there can be 2 names in Text but お名前 is the first one)
 2. Date (実施日) - the implementation date(It can't be earlier than last year, if it's earlier, please fix it to the current year)
-3. Time (時間) 
+3. Time (時間) : this is the ms
     - :00 20 such format means 20:00. it's time format
+    - time format only :00 or :30, if didn't match have to update with this format.
     - can't be arranged "(" or ")" before the time. if there is "(" or ")" before the time, it's "1" in the time so add "1" to the time.
     for example "(7:30" is "17:30" not 07:30 or 7:30.
     - there are even times(first one is the start time, second one is the end time, third one is the start time, fourth one is the end time, and so on, end time can be earlier than start time)
@@ -115,7 +116,7 @@ If there are multiple records, extract all of them. If there's only one record, 
 """
             client = OpenAI(api_key=self.api_key)
             response = client.responses.create(
-                model="gpt-4-turbo",
+                model="gpt-5",
                 instructions="You are a helpful assistant that extracts structured data from Japanese text. Always respond with valid JSON only. Extract ALL records found in the text.",
                 input=prompt
             )
@@ -237,7 +238,7 @@ If there are multiple records, extract all of them. If there's only one record, 
 
 if __name__ == "__main__":
     USE_OPENAI_OCR = False  # Set this to False to use Google OCR
-    with open("images/7.jpeg", "rb") as f:
+    with open("images/4.jpeg", "rb") as f:
         image_data = f.read()
     extractor = ImageTextExtractor()
 
