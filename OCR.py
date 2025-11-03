@@ -176,8 +176,6 @@ If there are multiple records, extract all of them. If there's only one record, 
                 pass
         
         if full_text:
-            print("=============== full text ==================")
-            print(full_text)
             # Extract structured data from the full text
             structured_data_list = self.extract_structured_data(full_text)
             
