@@ -92,7 +92,6 @@ Please extract ALL occurrences of:
 8. Housework (家事) - extract the single number value, return 0 if empty or not found
 
 Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time", "facility_name", "disability_support_hours", "severe_comprehensive_support", "severe_visitation", "housework"
-If any information is not found in a record, use null for that field.
 
 reference this Example format:
 [
@@ -248,7 +247,7 @@ If there are multiple records, extract all of them. If there's only one record, 
 
 if __name__ == "__main__":
     USE_OPENAI_OCR = False  # Set this to False to use Google OCR
-    with open("image.jpeg", "rb") as f:
+    with open("images/5.jpeg", "rb") as f:
         image_data = f.read()
     extractor = ImageTextExtractor()
 

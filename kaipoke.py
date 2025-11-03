@@ -642,7 +642,7 @@ class KaipokeScraper:
              traceback.print_exc()
              return None
      
-    def add_new_service(self, day: int, disability_support_hours: float, severe_comprehensive_support: float, start_time: int, end_time: int) -> bool:
+    def add_new_service(self, day: int, disability_support_hours: float, severe_comprehensive_support: float, start_time: int, end_time: int, severe_visitation: float, housework: float) -> bool:
         """Add a new service by filling out the service registration form"""
         if not self.is_logged_in:
             print("❌ エラー: ログインしていません。まずログインしてください。")
@@ -663,8 +663,8 @@ class KaipokeScraper:
                 print("❌ '新規追加する'ボタンが見つかりませんでした")
                 return False
             
-            # Step 3: Select "重度訪問介護" from service kind dropdown
-            print("📋 サービス種別ドロップダウンから'重度訪問介護'を選択中...")
+            # Step 2: Select "重度訪問介護" from service kind dropdown
+            print("📋 サービス種別ドロップダウンを処理中...")
             
             # Wait for the dropdown to appear (it might be loaded via AJAX)
             time.sleep(4)
@@ -679,7 +679,7 @@ class KaipokeScraper:
                     print("✅ '居宅介護'を選択しました (値=40)")
                     time.sleep(2)  # Wait for AJAX to complete
                     
-                    # Step 4: Select "身体介護" from service division dropdown
+                    # Step 3: Select "身体介護" from service division dropdown
                     print("📋 サービス区分ドロップダウンから'身体介護'を選択中...")
                     
                     # Wait for service division dropdown to load
@@ -697,11 +697,11 @@ class KaipokeScraper:
                         print("❌ サービス区分ドロップダウンが見つかりませんでした")
                         return False
                         
-                elif severe_comprehensive_support > 0:
+                elif severe_visitation > 0:
                     service_kind_select.select_option(value="41")
                     print("✅ '重度訪問介護'を選択しました (値=41)")
                     time.sleep(2)  # Wait for AJAX to complete
-                    # Step 4: Select "重度訪問介護（障害支援区分６）" from service division dropdown
+                    # Step 3: Select "重度訪問介護（障害支援区分６）" from service division dropdown
                     print("📋 サービス区分ドロップダウンから'重度訪問介護（障害支援区分６）'を選択中...")
                     
                     # Wait for service division dropdown to load
@@ -722,7 +722,7 @@ class KaipokeScraper:
                 print("❌ サービス種別ドロップダウンが見つかりませんでした")
                 return False
             
-            # Step 5: Fill in start and end time using text inputs
+            # Step 4: Fill in start and end time using text inputs
             print("⏰ テキスト入力で開始時刻と終了時刻を設定中...")
             
             # Start time: start_time
@@ -748,7 +748,30 @@ class KaipokeScraper:
                 print("⚠️ 終了時刻入力フィールドが見つかりませんでした")
             
             print(f"✅ 開始時刻: {start_time}, 終了時刻: {end_time}を設定しました")
-                  
+
+            # step 5: select  実績
+            try:
+                print("✅ '予定・実績'のラジオボタンを'実績'に設定中...")
+                # Prefer checking the radio input directly
+                achievement_radio = self.page.locator('input[id="formPopup:planAchievementRadio:1"][type="radio"][value="02"]')
+                if achievement_radio.count() > 0:
+                    achievement_radio.check()
+                    print("✅ '実績'ラジオボタンを選択しました")
+                    time.sleep(1)
+                else:
+                    # Fallback: click the label associated with the radio
+                    achievement_label = self.page.locator('label[for="formPopup:planAchievementRadio:1"]')
+                    if achievement_label.count() > 0:
+                        achievement_label.click()
+                        print("✅ '実績'ラベルをクリックして選択しました")
+                        time.sleep(1)
+                    else:
+                        print("⚠️ '実績'のラジオボタンが見つかりませんでした")
+            except Exception as e:
+                print(f"⚠️ '実績'ラジオボタンの設定に失敗しました: {e}")
+                # Continue, this might not be critical depending on flow
+
+            
             # Step 6: Select specific date from calendar (day)
             print("📅 カレンダーから特定の日付を選択中...")
             
@@ -950,6 +973,8 @@ class KaipokeScraper:
             disability_support_hours = record.get('disability_support_hours', 0)
             severe_comprehensive_support = record.get('severe_comprehensive_support', 0)
             ocr_time = record.get('time')
+            severe_visitation = record.get('severe_visitation', 0)
+            housework = record.get('housework', 0)
 
             # Validate required fields
             if not all([date, name, ocr_time]):
@@ -990,10 +1015,10 @@ class KaipokeScraper:
                 # Overnight service - split into two
                 print("🌙 深夜サービスを処理中...")
                 
-                success1 = self.add_new_service(day, disability_support_hours, severe_comprehensive_support, start_time, '2400')
+                success1 = self.add_new_service(day, disability_support_hours, severe_comprehensive_support, start_time, '2400', severe_visitation, housework)
                 if success1:
                     time.sleep(5)
-                    success2 = self.add_new_service(day+1, disability_support_hours, severe_comprehensive_support, '0000', end_time)
+                    success2 = self.add_new_service(day+1, disability_support_hours, severe_comprehensive_support, '0000', end_time, severe_visitation, housework)
                     return success1 and success2
                 return False
             else:
