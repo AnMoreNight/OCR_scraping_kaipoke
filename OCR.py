@@ -93,6 +93,7 @@ Please extract ALL occurrences of:
 
 Return the result as a JSON array where each object represents one complete record with keys: "name", "date", "time", "facility_name", "disability_support_hours", "severe_comprehensive_support", "severe_visitation", "housework"
 
+record counts can be 1 or 2.
 reference this Example format:
 [
     {{

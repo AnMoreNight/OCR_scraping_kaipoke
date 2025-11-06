@@ -856,10 +856,22 @@ class KaipokeScraper:
                             print("❌ バリデーションエラーが検出されました:")
                             for error in error_messages:
                                 print(f"   - {error}")
-                            return False
-                    
-                    # Check if registration was successful
-                    print("✅ サービス登録が正常に完了しました！")
+
+                            # Close the modal so we can continue processing other records
+                            close_button = self.page.locator('a#closeModal.simplemodal-close')
+                            if close_button.count() > 0:
+                                try:
+                                    close_button.click()
+                                    print("✅ エラーモーダルを閉じました")
+                                    time.sleep(1)
+                                except Exception as close_err:
+                                    print(f"⚠️ エラーモーダルを閉じる際に問題が発生しました: {close_err}")
+                            else:
+                                print("⚠️ エラーモーダルの閉じるボタンが見つかりませんでした")
+
+                        else : 
+                             # Check if registration was successful
+                            print("✅ サービス登録が正常に完了しました！")
                     return True
                 except Exception as e:
                     print(f"⚠️ 登録ボタンをクリックできませんでした: {e}")
@@ -887,16 +899,24 @@ class KaipokeScraper:
                                     print("❌ バリデーションエラーが検出されました（代替方法）:")
                                     for error in error_messages:
                                         print(f"   - {error}")
-                                    return False
-                            
-                            print("✅ サービス登録が正常に完了しました！")
-                            return True
+
+                                    close_button = self.page.locator('a#closeModal.simplemodal-close')
+                                    if close_button.count() > 0:
+                                        try:
+                                            close_button.click()
+                                            print("✅ エラーモーダルを閉じました")
+                                            time.sleep(1)
+                                        except Exception as close_err:
+                                            print(f"⚠️ エラーモーダルを閉じる際に問題が発生しました: {close_err}")
+                                    else:
+                                        print("⚠️ エラーモーダルの閉じるボタンが見つかりませんでした")
+                            else:
+                                print("✅ サービス登録が正常に完了しました！")
+                                return True
                         else:
                             print("❌ 代替方法で登録ボタンが見つかりませんでした")
-                            return False
                     except Exception as e2:
                         print(f"❌ 登録ボタンのクリックに失敗しました: {e2}")
-                        return False
             else:
                 print("❌ '登録する'ボタンが見つかりませんでした")
                 return False
@@ -1023,7 +1043,7 @@ class KaipokeScraper:
                 return False
             else:
                 # Single service
-                return self.add_new_service(day, disability_support_hours, severe_comprehensive_support, start_time, end_time)
+                return self.add_new_service(day, disability_support_hours, severe_comprehensive_support, start_time, end_time, severe_visitation, housework)
                 
         except Exception as e:
             print(f"❌ レコード処理中に重大なエラーが発生しました: {e}")
