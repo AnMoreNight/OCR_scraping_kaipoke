@@ -958,7 +958,6 @@ class KaipokeScraper:
                 "メディケア大宮桜木": '障害者総合支援(訪問系)/1116513696',
             }
             link_text = facility_link_map.get(facility_name)
-            print(link_text)
 
             # Navigate to required pages
             if not self.navigate_to_Receipt_page():
