@@ -212,11 +212,11 @@ class KaipokeScraper:
             traceback.print_exc()
             return False
     
-    def navigate_to_ask_page(self) -> Optional[str]:
+    def navigate_to_ask_page(self, link_text: str) -> bool:
         """Navigate to the Ask page by clicking the specific navigation link"""
         if not self.is_logged_in:
             print("❌ エラー: ログインしていません。まずログインしてください。")
-            return None
+            return False
         
         try:
             print(f"\n📄 Askページに遷移中...")
@@ -224,44 +224,22 @@ class KaipokeScraper:
             # Wait for the page to load completely
             time.sleep(3)
             
-            # Look for the specific link with the onclick handler
-            # The link contains: 障害者総合支援(訪問系)/1116513696
-            print("🔍 ナビゲーションリンクを検索中...")
-            
-            # Try to find the link by its text content
-            link_selector = 'a[onclick*="onesCompanyPlantInternalId"][onclick*="168937"]'
-            
-            # Wait for the link to be visible
-            print("⏳ ナビゲーションリンクの表示を待機中...")
-            self.page.wait_for_selector(link_selector, state='visible', timeout=15000)
-            
-            # Get the current URL before clicking
-            current_url_before = self.page.url
-            print(f"📍 遷移前のURL: {current_url_before}")
-            
             # Click the specific link
-            print("🖱️ 障害者総合支援(訪問系)/1116513696リンクをクリック中...")
-            self.page.click(link_selector)
+            print(f"🖱️ {link_text}リンクをクリック中...")
+            link_element = self.page.locator(f'a:has-text("{link_text}")')
             
-            # Wait for navigation to complete
-            print("⏳ 遷移完了を待機中...")
-            time.sleep(5)
-            
-            # Get the new URL after navigation
-            current_url_after = self.page.url
-            print(f"📍 遷移後のURL: {current_url_after}")
-            
-            # Check if navigation was successful (URL should have changed)
-            if current_url_after != current_url_before:
+            if link_element.count() > 0:
+                link_element.click()
+                
+                # Wait for navigation to complete
+                print("⏳ 遷移完了を待機中...")
+                time.sleep(5)
+                
                 print("✅ Askページへの遷移に成功しました！")
-                print(f"📍 新しいページURL: {current_url_after}")
-                return current_url_after
+                return True
             else:
-                print("⚠️ URLが変更されませんでした - 遷移に失敗した可能性があります")
-                # Check if we're still on the same page or if there was an error
-                page_title = self.page.title()
-                print(f"📄 ページタイトル: {page_title}")
-                return current_url_after
+                print(f"❌ {link_text}リンクが見つかりませんでした")
+                return False
             
         except Exception as e:
             print(f"❌ Askページへの遷移中にエラーが発生しました: {e}")
@@ -270,36 +248,27 @@ class KaipokeScraper:
             
             # Try alternative approach - look for the link by text content
             try:
-                print("🔄 代替アプローチを試行中 - リンクテキストで検索...")
+                print(f"🔄 代替アプローチを試行中 - {link_text}リンクを検索中...")
                 
                 # Look for the link containing the specific text
-                link_text = "障害者総合支援(訪問系)/1116513696"
                 link_element = self.page.locator(f'a:has-text("{link_text}")')
                 
                 if link_element.count() > 0:
-                    print(f"✅ テキストでリンクを発見: {link_text}")
-                    current_url_before = self.page.url
+                    print(f"✅ {link_text}リンクを発見")
                     
                     # Click the link
                     link_element.click()
                     time.sleep(5)
                     
-                    current_url_after = self.page.url
-                    print(f"📍 遷移結果: {current_url_after}")
-                    
-                    if current_url_after != current_url_before:
-                        print("✅ 代替遷移に成功しました！")
-                        return current_url_after
-                    else:
-                        print("⚠️ 代替遷移 - URLが変更されませんでした")
-                        return current_url_after
+                    print("✅ 代替遷移に成功しました！")
+                    return True
                 else:
-                    print(f"❌ テキストでリンクが見つかりませんでした: {link_text}")
-                    return None
+                    print(f"❌ {link_text}リンクが見つかりませんでした")
+                    return False
                     
             except Exception as alt_e:
                  print(f"❌ 代替アプローチも失敗しました: {alt_e}")
-                 return None
+                 return False
      
     def navigate_to_user_schedule_registration(self) -> Optional[str]:
          """Navigate to User-specific Schedule/Performance Registration page"""
@@ -973,12 +942,30 @@ class KaipokeScraper:
     def _process_single_record(self, record: Dict[str, str]) -> bool:
         """Process a single OCR record"""
         try:
+            
+            # Extract and validate data
+            date = record.get('date')
+            name = record.get('name')
+            facility_name = record.get('facility_name')
+            disability_support_hours = record.get('disability_support_hours', 0)
+            severe_comprehensive_support = record.get('severe_comprehensive_support', 0)
+            ocr_time = record.get('time')
+            severe_visitation = record.get('severe_visitation', 0)
+            housework = record.get('housework', 0)
+
+            facility_link_map = {
+                "メディヴィレッジ群馬 HOME": '障害者総合支援(訪問系)/1010202867',
+                "メディケア大宮桜木": '障害者総合支援(訪問系)/1116513696',
+            }
+            link_text = facility_link_map.get(facility_name)
+            print(link_text)
+
             # Navigate to required pages
             if not self.navigate_to_Receipt_page():
                 print("❌ レシートページへの遷移に失敗しました")
                 return False
             
-            if not self.navigate_to_ask_page():
+            if not self.navigate_to_ask_page(link_text):
                 print("❌ Askページへの遷移に失敗しました")
                 return False
             
@@ -986,15 +973,6 @@ class KaipokeScraper:
             if not schedule_registration_url:
                 print("❌ 利用者別予実登録ページへの遷移に失敗しました")
                 return False
-
-            # Extract and validate data
-            date = record.get('date')
-            name = record.get('name')
-            disability_support_hours = record.get('disability_support_hours', 0)
-            severe_comprehensive_support = record.get('severe_comprehensive_support', 0)
-            ocr_time = record.get('time')
-            severe_visitation = record.get('severe_visitation', 0)
-            housework = record.get('housework', 0)
 
             # Validate required fields
             if not all([date, name, ocr_time]):
@@ -1061,9 +1039,11 @@ def main():
         if login:
             nav = scraper.navigate_to_Receipt_page()
             if nav:
-                ask_page_url = scraper.navigate_to_ask_page()
-                if ask_page_url:
-                    print(f"✅ Askページへの遷移に成功しました: {ask_page_url}")
+                # Example link text - should match one of the facility links
+                link_text = '障害者総合支援(訪問系)/1116513696'
+                ask_page_success = scraper.navigate_to_ask_page(link_text)
+                if ask_page_success:
+                    print(f"✅ Askページへの遷移に成功しました")
                     
                     # Navigate to User-specific Schedule/Performance Registration
                     schedule_registration_url = scraper.navigate_to_user_schedule_registration()
